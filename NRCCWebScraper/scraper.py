@@ -1,7 +1,7 @@
 
 import re
 from bs4 import BeautifulSoup
-from helium import *
+import helium as he
 import os
 from pathlib import Path
 import sqlite3
@@ -15,16 +15,16 @@ NRCC_Catalog = 'https://catalog.nr.edu/content.php?catoid=30&navoid=2019'
 # opens a headless browser and goes to desired url / headless cuz javascript and such
 def headless_browser(url):
 
-    browser = start_chrome(url, headless=True)
+    browser = he.start_firefox(url, headless=True)
 
     return browser
 
 
 
-def write_database(table_name, data, contents, data_format):
+def write_database(data_list):
 
     '''
-    Define formatting for table creating inside scraping function, return formatting vars as a list in order of write_database parameters\n
+    Define list of data to be input in scraping function 'table_name, data, contents, data_format' in that order\n
     Example:
 
         table_name = 'programs_index'
@@ -37,6 +37,8 @@ def write_database(table_name, data, contents, data_format):
     contents: desired column name(s) and their data type as tuple "(data_name1 TEXT, data_name2 INTEGER, etc...)"
     data_format: column format to be created for table "(?,?,?,etc...)"
     '''
+
+    table_name, data, contents, data_format = data_list[0], data_list[1], data_list[2], data_list[3]
 
     connection = sqlite3.connect(Path(__file__).with_name('data.db'))
     cursor = connection.cursor()
@@ -86,6 +88,5 @@ def program_addresses():
 
     return table_name, data, contents, data_format
 
-program_index = program_addresses()
 
-write_database(program_index[0], program_index[1], program_index[2], program_index[3])
+write_database(program_addresses())
