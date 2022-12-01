@@ -92,7 +92,7 @@ def program_addresses():
         split_href = re.split('&|=', program.get('href'))
         poid.append(int(split_href[-3]))
 
-    ## desired formatting for program_addresses function
+    he.kill_browser()
 
     table_name = 'programs_index' # name of table for this function
     data = list(zip(program_name, poid)) # zips program_name & poid lists into AAS_programs list of tuples
@@ -120,7 +120,7 @@ def program_classes():
         all_reqs = soup.select(selector='li.acalog-course span a')
 
         for requirement in all_reqs:
-            req_item = requirement.text.strip()
+            req_item = requirement.text.strip().replace(' ', '_')
             classes.append((req_item, address))
 
         he.kill_browser()
@@ -137,7 +137,42 @@ def program_classes():
     return table_name, data, contents, data_format
 
 
-#write_database(program_addresses())
-write_database(program_classes())
+
+def drop_table(table_name):
+
+    conn = sqlite3.connect(Path(__file__).with_name('data.db'))
+    c = conn.cursor()
+
+    c.execute(f"""DROP TABLE {table_name}""")
+
+    conn.close()
 
 
+
+def main():
+
+    while True:
+
+        print('(1) scrape available programs\n(2) scrape program classes\n(3) Drop specific table')
+
+        user_select = input("\nSelect option using corresponding number: ")
+
+        if user_select == '1':
+            write_database(program_addresses())
+            break
+
+        elif user_select == '2':
+            write_database(program_classes())
+            break
+
+        elif user_select == '3':
+            table_select = input("input table to be dropped: ")
+            drop_table(table_select)
+            break
+
+        else:
+            print('invalid input')
+
+
+if __name__ == '__main__':
+    main()
