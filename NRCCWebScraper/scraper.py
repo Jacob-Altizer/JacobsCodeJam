@@ -6,7 +6,6 @@ import os
 from pathlib import Path
 import sqlite3
 import time
-from selenium.webdriver import ChromeOptions
 
 
 # Full stack url https://catalog.nr.edu/preview_program.php?catoid=30&poid=1282
@@ -19,9 +18,7 @@ NRCC_Catalog = 'https://catalog.nr.edu/content.php?catoid=30&navoid=2019'
 # opens a headless browser and goes to desired url / headless cuz javascript and such
 def headless_browser(url):
 
-    chrome_options = ChromeOptions()
-    chrome_options.add_argument('--proxy-server=75.126.253.8:8080')
-    browser = he.start_chrome(url, headless=False, options=chrome_options)
+    browser = he.start_firefox(url, headless=False)
     
     return browser
 
@@ -48,10 +45,10 @@ def write_database(data_list):
 
     conn = sqlite3.connect(Path(__file__).with_name('data.db'))
     c = conn.cursor()
+    
+    c.execute(f"""CREATE TABLE IF NOT EXISTS '{table_name}' ({contents})""")
 
-    c.execute(f"""CREATE TABLE IF NOT EXISTS {table_name} ({contents})""")
-
-    c.executemany(f"""INSERT INTO {table_name} VALUES ({data_format})""", data)
+    c.executemany(f"""INSERT OR REPLACE INTO '{table_name}' VALUES ({data_format})""", data)
 
     conn.commit()
 
@@ -64,13 +61,15 @@ def read_database():
     conn = sqlite3.connect(Path(__file__).with_name('data.db'))
     c = conn.cursor()
 
-    c.execute("""SELECT * FROM programs_index WHERE poid='1185'""")
+    c.execute("""SELECT poid FROM programs_index WHERE program_name='Information_Technology-Full_Stack_Developer_Specialization_AAS' """)
 
     print(c.fetchall())
 
     conn.commit()
 
     conn.close()
+
+#read_database()
 
 
 
@@ -87,15 +86,8 @@ def program_addresses():
 
     for program in programs_list:
 
-        for char in program:
-            if '-' in char:
-                prefix_split = program.text.split('-')
-                suffix = prefix_split[-1]
-                program_name.append(suffix.replace(' ', '_'))
-            else:
-                program_name.append(program.text.replace(' ', '_'))
+        program_name.append(program.text.replace(' ', '_').replace('-', '_'))
         
-
         # pulls poid value in list anchor tag hrefs
         split_href = re.split('&|=', program.get('href'))
         poid.append(int(split_href[-3]))
@@ -109,5 +101,43 @@ def program_addresses():
 
     return table_name, data, contents, data_format
 
-# write_database(program_addresses())
+
+
+def program_classes():
+    template_url = f'https://catalog.nr.edu/preview_program.php?catoid=30&poid=' # 1282
+    classes = []
+
+    conn = sqlite3.connect(Path(__file__).with_name('data.db'))
+    c = conn.cursor()
+
+    c.execute(f"""SELECT * FROM programs_index""")
+
+    for info in c.fetchall():
+        print(info)
+        address = str(info[1])
+
+        soup = BeautifulSoup(headless_browser(template_url + address).page_source, 'html.parser')
+        all_reqs = soup.select(selector='li.acalog-course span a')
+
+        for requirement in all_reqs:
+            req_item = requirement.text.strip()
+            classes.append((req_item, address))
+
+        he.kill_browser()
+
+        time.sleep(10)
+
+    conn.close()
+
+    table_name = 'class_requirements' # name of table for this function
+    data = classes
+    contents = 'class_name TEXT, poid INTEGER' # column names and their value type
+    data_format = '?,?' # place holder column format
+
+    return table_name, data, contents, data_format
+
+
+#write_database(program_addresses())
+write_database(program_classes())
+
 
